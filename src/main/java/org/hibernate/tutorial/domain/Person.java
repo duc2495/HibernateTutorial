@@ -52,11 +52,11 @@ public class Person {
     
     private Set<Event> events = new HashSet<Event>();
 
-    public Set<Event> getEvents() {
+    protected Set<Event> getEvents() {
         return events;
     }
 
-    public void setEvents(Set<Event> events) {
+    protected void setEvents(Set<Event> events) {
         this.events = events;
     }
     
@@ -69,5 +69,15 @@ public class Person {
 
     public void setEmailAddresses(Set<String> emailAddresses) {
         this.emailAddresses = emailAddresses;
+    }
+
+    public void addToEvent(Event event) {
+        this.getEvents().add(event);
+        event.getParticipants().add(this);
+    }
+
+    public void removeFromEvent(Event event) {
+        this.getEvents().remove(event);
+        event.getParticipants().remove(this);
     }
 }

@@ -12,120 +12,81 @@ public class EventManager {
 
 	public static void main(String[] args) {
 		EventManager mgr = new EventManager();
+		Session session = HibernateUtil.getSessionFactory().getCurrentSession();
+		session.beginTransaction();
 
 		if (args[0].equals("store")) {
-			mgr.createAndStoreEvent("My Event", new Date());
+			mgr.createAndStoreEvent(session, "My Event", new Date());
+			session.getTransaction().commit();
 		} else if (args[0].equals("list")) {
-			List events = mgr.listEvents();
+			List events = mgr.listEvents(session);
 			for (int i = 0; i < events.size(); i++) {
 				Event theEvent = (Event) events.get(i);
-				List persons = mgr.listPersonsWithEvent(theEvent.getId());
+				List persons = mgr.listPersonsWithEvent(session, theEvent.getId());
 				System.out.println("Event: " + theEvent.getTitle() + " Time: " + theEvent.getDate());
 				for (int j = 0; j < persons.size(); j++) {
 					Person thePerson = (Person) persons.get(j);
 					System.out.println(
 							"\t-FisrtName: " + thePerson.getFirstname() + " LastName: " + thePerson.getLastname());
-//					System.out.println("\t\t-Email Address: ");
-//					for (String email : thePerson.getEmailAddresses()) {
-//						System.out.println("\t\t\t" + email);
-//					}
+					System.out.println("\t\t-Email Address: ");
+					for (String email : thePerson.getEmailAddresses()) {
+						System.out.println("\t\t\t" + email);
+					}
 
 				}
 			}
+			session.getTransaction().commit();
 		} else if (args[0].equals("addpersontoevent")) {
-			Long eventId = mgr.createAndStoreEvent("My Event", new Date());
-			Long personId = mgr.createAndStorePerson("Duc", "Nguyen");
-			mgr.addPersonToEvent(personId, eventId);
+			Long eventId = mgr.createAndStoreEvent(session, "My Event", new Date());
+			Long personId = mgr.createAndStorePerson(session, "Duc", "Nguyen");
+			mgr.addPersonToEvent(session, personId, eventId);
 			System.out.println("Added person " + personId + " to event " + eventId);
+			session.getTransaction().commit();
 		} else if (args[0].equals("addemail")) {
-			mgr.addEmailToPerson(1L, "duc2495@gmail.com");
+			mgr.addEmailToPerson(session, 1L, "duc2495@gmail.com");
+			session.getTransaction().commit();
 		}
-
 		HibernateUtil.getSessionFactory().close();
 	}
 
-	private Long createAndStoreEvent(String title, Date theDate) {
-		Session session = HibernateUtil.getSessionFactory().getCurrentSession();
-		session.beginTransaction();
-
+	private Long createAndStoreEvent(Session session, String title, Date theDate) {
 		Event theEvent = new Event();
 		theEvent.setTitle(title);
 		theEvent.setDate(theDate);
 		Long id = (Long) session.save(theEvent);
-
-		session.getTransaction().commit();
 		return id;
 	}
 
-	private Long createAndStorePerson(String firstname, String lastname) {
-		Session session = HibernateUtil.getSessionFactory().getCurrentSession();
-		session.beginTransaction();
-
+	private Long createAndStorePerson(Session session, String firstname, String lastname) {
 		Person thePerson = new Person();
 		thePerson.setFirstname(firstname);
 		thePerson.setLastname(lastname);
 		thePerson.setAge(20);
 		Long id = (Long) session.save(thePerson);
-
-		session.getTransaction().commit();
 		return id;
 	}
 
-	private List listEvents() {
-		Session session = HibernateUtil.getSessionFactory().getCurrentSession();
-		session.beginTransaction();
+	private List listEvents(Session session) {
 		List result = session.createQuery("from Event").list();
-		session.getTransaction().commit();
 		return result;
 	}
 
-	private List listPersonsWithEvent(Long idEvent) {
-		Session session = HibernateUtil.getSessionFactory().getCurrentSession();
-		session.beginTransaction();
+	private List listPersonsWithEvent(Session session, Long idEvent) {
 		List result = session.createQuery("from Person where id=" + idEvent).list();
-		session.getTransaction().commit();
 		return result;
 	}
 
-	private void addPersonToEvent(Long personId, Long eventId) {
-		Session session = HibernateUtil.getSessionFactory().getCurrentSession();
-		session.beginTransaction();
-
-		Person aPerson = (Person) session
-				.createQuery("select p from Person p left join fetch p.events where p.id = :pid")
-				.setParameter("pid", personId).uniqueResult(); // Eager fetch
-																// the
-																// collection so
-																// we can use it
-																// detached
-		Event anEvent = (Event) session.load(Event.class, eventId);
-
-		session.getTransaction().commit();
-
-		// End of first unit of work
-
-		aPerson.getEvents().add(anEvent); // aPerson (and its collection) is
-											// detached
-
-		// Begin second unit of work
-
-		Session session2 = HibernateUtil.getSessionFactory().getCurrentSession();
-		session2.beginTransaction();
-		session2.update(aPerson); // Reattachment of aPerson
-
-		session2.getTransaction().commit();
+	private void addPersonToEvent(Session session, Long personId, Long eventId) {
+        Person aPerson = (Person) session.load(Person.class, personId);
+        Event anEvent = (Event) session.load(Event.class, eventId);
+        aPerson.addToEvent(anEvent);
 	}
 
-	private void addEmailToPerson(Long personId, String emailAddress) {
-		Session session = HibernateUtil.getSessionFactory().getCurrentSession();
-		session.beginTransaction();
-
+	private void addEmailToPerson(Session session, Long personId, String emailAddress) {
 		Person aPerson = (Person) session.load(Person.class, personId);
 		// adding to the emailAddress collection might trigger a lazy load of
 		// the collection
 		aPerson.getEmailAddresses().add(emailAddress);
-
-		session.getTransaction().commit();
 	}
 
 }
